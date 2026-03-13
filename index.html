@@ -18,6 +18,13 @@
     <main class="max-w-5xl mx-auto py-10 px-4">
         
         <section class="mb-12">
+            <h2 class="text-2xl font-bold border-b-2 border-red-700 pb-2 mb-6">Live Updates</h2>
+            <div id="news-feed" class="grid md:grid-cols-2 gap-4">
+                <p class="text-gray-500 italic" id="loading-text">Loading latest headlines...</p>
+            </div>
+        </section>
+
+        <section class="mb-12">
             <h2 class="text-2xl font-bold border-b-2 border-red-700 pb-2 mb-6">The Gold Standard (Unrestricted & Neutral)</h2>
             <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <h3 class="text-xl font-bold mb-2">The Lebanese Red Cross</h3>
@@ -29,7 +36,6 @@
         <section class="mb-12">
             <h2 class="text-2xl font-bold border-b-2 border-red-700 pb-2 mb-6">Vetted Relief Organizations</h2>
             <div class="grid md:grid-cols-3 gap-6">
-                
                 <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 flex flex-col">
                     <h3 class="text-xl font-bold mb-2">Caritas Lebanon</h3>
                     <p class="text-gray-600 mb-4 flex-grow">A leading humanitarian organization providing emergency relief, healthcare, and social protection to displaced families and the most vulnerable.</p>
@@ -47,7 +53,6 @@
                     <p class="text-gray-600 mb-4 flex-grow">A politically and religiously independent organization focusing on community relief, rebuilding, and national unity.</p>
                     <a href="https://offrejoie.org/" target="_blank" class="text-red-600 font-semibold hover:underline mt-auto">Visit Website &rarr;</a>
                 </div>
-
             </div>
         </section>
 
@@ -63,8 +68,46 @@
     </main>
 
     <footer class="bg-gray-800 text-gray-300 py-6 text-center text-sm mt-8">
-        <p>Created to support Lebanon during crisis</p>
+        <p>Created to support Lebanon during crises. Built for OpenShift deployment.</p>
     </footer>
 
+    <script>
+        // Here you can put the RSS feed URL of any news outlet you prefer.
+        // I am using Al Jazeera's general feed as a reliable placeholder.
+        const rssUrl = 'https://www.aljazeera.com/xml/rss/all.xml';
+        
+        // We use a free public API to convert the messy XML RSS feed into clean JSON
+        const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
+
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                const newsContainer = document.getElementById('news-feed');
+                document.getElementById('loading-text').style.display = 'none'; // Hide loading text
+                
+                // We will just grab the top 4 news items so the page doesn't get too long
+                const topArticles = data.items.slice(0, 4);
+                
+                topArticles.forEach(item => {
+                    const article = document.createElement('div');
+                    article.className = 'bg-white p-4 rounded-lg shadow-sm border border-gray-200';
+                    
+                    // Format the publication date cleanly
+                    const pubDate = new Date(item.pubDate).toLocaleDateString();
+
+                    article.innerHTML = `
+                        <h4 class="font-bold text-lg leading-tight mb-2">
+                            <a href="${item.link}" target="_blank" class="hover:text-red-600 transition">${item.title}</a>
+                        </h4>
+                        <p class="text-xs text-gray-500 font-semibold">${pubDate}</p>
+                    `;
+                    newsContainer.appendChild(article);
+                });
+            })
+            .catch(error => {
+                console.error("Error fetching news:", error);
+                document.getElementById('loading-text').innerText = "Unable to load live news at this time.";
+            });
+    </script>
 </body>
 </html>

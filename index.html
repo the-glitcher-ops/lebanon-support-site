@@ -37,7 +37,8 @@
             display: flex;
             white-space: nowrap;
             padding-left: 100%; /* Starts off-screen to the right */
-            animation: scroll-left 40s linear infinite; /* Adjust '40s' to make it faster/slower */
+            /* Increased to 60s since we have more news to display now */
+            animation: scroll-left 60s linear infinite; 
         }
         .ticker-scroll:hover {
             animation-play-state: paused; /* Pauses so users can click links */
@@ -55,6 +56,15 @@
         }
         .ticker-item a:hover {
             color: #fca5a5; /* Turns light red when hovered */
+        }
+        .ticker-source {
+            font-size: 0.75rem;
+            background-color: #374151;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-right: 10px;
+            font-weight: bold;
+            color: #9ca3af;
         }
         .ticker-separator {
             color: #ef4444;
@@ -77,9 +87,9 @@
     </header>
 
     <div class="ticker-container">
-        <div class="ticker-label">LBCI Live News</div>
+        <div class="ticker-label">Live News</div>
         <div class="ticker-scroll" id="ticker-scroll">
-            <span class="ticker-item">Loading latest headlines...</span>
+            <span class="ticker-item">Loading latest headlines from MTV and LBCI...</span>
         </div>
     </div>
 
@@ -129,42 +139,60 @@
     </main>
 
     <footer class="bg-gray-800 text-gray-300 py-6 text-center text-sm mt-8">
-        <p>Created to support Lebanon during crisis </p>
+        <p>Created to support Lebanon during crisis</p>
     </footer>
 
     <script>
-        // Official LBCI Lebanon English News Feed
-        const rssUrl = 'https://www.lbcgroup.tv/Rss/News/en/8/lebanon-news';
+        // RSS Feed URLs
+        const lbciUrl = 'https://www.lbcgroup.tv/Rss/News/en/8/lebanon-news';
+        const mtvUrl = 'https://www.mtv.com.lb/rss/news/en'; // Standard MTV English RSS
         
-        // Convert the XML RSS feed into clean JSON
-        const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
+        // Convert to JSON via API
+        const lbciApi = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(lbciUrl)}`;
+        const mtvApi = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(mtvUrl)}`;
 
-        fetch(apiUrl)
-            .then(response => response.json())
-            .then(data => {
-                const tickerScroll = document.getElementById('ticker-scroll');
-                tickerScroll.innerHTML = ''; // Clear out the loading text
+        // We use Promise.all to fetch both news networks at the exact same time
+        Promise.all([
+            fetch(lbciApi).then(res => res.json()).catch(() => ({ items: [] })),
+            fetch(mtvApi).then(res => res.json()).catch(() => ({ items: [] }))
+        ])
+        .then(([lbciData, mtvData]) => {
+            const tickerScroll = document.getElementById('ticker-scroll');
+            tickerScroll.innerHTML = ''; // Clear loading text
+
+            // Map the items so we know which network they came from
+            const lbciArticles = (lbciData.items || []).slice(0, 7).map(item => ({...item, source: 'LBCI'}));
+            const mtvArticles = (mtvData.items || []).slice(0, 7).map(item => ({...item, source: 'MTV'}));
+            
+            // Combine both arrays into one big news list
+            const combinedNews = [...lbciArticles, ...mtvArticles];
+
+            // If both feeds completely fail for some reason, show an error
+            if(combinedNews.length === 0) {
+                tickerScroll.innerHTML = '<span class="ticker-item">Unable to load live news. Please check back later.</span>';
+                return;
+            }
+
+            // Shuffle them slightly so LBCI and MTV articles alternate in the feed
+            combinedNews.sort(() => Math.random() - 0.5);
+
+            combinedNews.forEach(item => {
+                const articleSpan = document.createElement('span');
+                articleSpan.className = 'ticker-item';
                 
-                // Grab the top 10 most recent news headlines
-                const topArticles = data.items.slice(0, 10);
-                
-                // Loop through them and add them to the scrolling line
-                topArticles.forEach(item => {
-                    const articleSpan = document.createElement('span');
-                    articleSpan.className = 'ticker-item';
-                    
-                    // Creates the red bullet point and the clickable headline
-                    articleSpan.innerHTML = `
-                        <span class="ticker-separator">&bull;</span>
-                        <a href="${item.link}" target="_blank" title="Read more">${item.title}</a>
-                    `;
-                    tickerScroll.appendChild(articleSpan);
-                });
-            })
-            .catch(error => {
-                console.error("Error fetching news:", error);
-                document.getElementById('ticker-scroll').innerHTML = '<span class="ticker-item">Unable to load live news at this time. Please check back later.</span>';
+                // Add a small tag showing if it is MTV or LBCI before the headline
+                articleSpan.innerHTML = `
+                    <span class="ticker-separator">&bull;</span>
+                    <span class="ticker-source">${item.source}</span>
+                    <a href="${item.link}" target="_blank" title="Read more on ${item.source}">${item.title}</a>
+                `;
+                tickerScroll.appendChild(articleSpan);
             });
+        })
+        .catch(error => {
+            console.error("Critical error fetching news:", error);
+            document.getElementById('ticker-scroll').innerHTML = '<span class="ticker-item">Unable to load live news at this time.</span>';
+        });
     </script>
 </body>
 </html>

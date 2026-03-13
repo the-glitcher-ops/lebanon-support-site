@@ -37,7 +37,6 @@
             display: flex;
             white-space: nowrap;
             padding-left: 100%; /* Starts off-screen to the right */
-            /* Increased to 60s since we have more news to display now */
             animation: scroll-left 60s linear infinite; 
         }
         .ticker-scroll:hover {
@@ -89,7 +88,7 @@
     <div class="ticker-container">
         <div class="ticker-label">Live News</div>
         <div class="ticker-scroll" id="ticker-scroll">
-            <span class="ticker-item">Loading latest headlines from MTV and LBCI...</span>
+            <span class="ticker-item">Fetching live headlines from MTV and LBCI...</span>
         </div>
     </div>
 
@@ -139,48 +138,59 @@
     </main>
 
     <footer class="bg-gray-800 text-gray-300 py-6 text-center text-sm mt-8">
-        <p>Created to support Lebanon during crisis</p>
+        <p>Created to support Lebanon during crisis.</p>
     </footer>
 
     <script>
         // RSS Feed URLs
         const lbciUrl = 'https://www.lbcgroup.tv/Rss/News/en/8/lebanon-news';
-        const mtvUrl = 'https://www.mtv.com.lb/rss/news/en'; // Standard MTV English RSS
-        
-        // Convert to JSON via API
-        const lbciApi = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(lbciUrl)}`;
-        const mtvApi = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(mtvUrl)}`;
+        // Note: We test MTV's English feed, but if they deprecated it, it will pull their main feed
+        const mtvUrl = 'https://www.mtv.com.lb/rss/news/en'; 
 
-        // We use Promise.all to fetch both news networks at the exact same time
+        // We use an open-source CORS proxy (allorigins) to bypass MTV's firewall blocks
+        const fetchXML = async (url, sourceName) => {
+            try {
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                const response = await fetch(proxyUrl);
+                const str = await response.text();
+                
+                // Parse the raw XML data manually
+                const data = new window.DOMParser().parseFromString(str, "text/xml");
+                const items = Array.from(data.querySelectorAll("item")).slice(0, 7);
+                
+                return items.map(item => ({
+                    title: item.querySelector("title")?.textContent || "No Title",
+                    link: item.querySelector("link")?.textContent || "#",
+                    source: sourceName
+                }));
+            } catch (error) {
+                console.error(`Error fetching ${sourceName}:`, error);
+                return []; // Return empty array if one fails so the other still loads
+            }
+        };
+
+        // Fetch both feeds concurrently
         Promise.all([
-            fetch(lbciApi).then(res => res.json()).catch(() => ({ items: [] })),
-            fetch(mtvApi).then(res => res.json()).catch(() => ({ items: [] }))
-        ])
-        .then(([lbciData, mtvData]) => {
+            fetchXML(lbciUrl, 'LBCI'),
+            fetchXML(mtvUrl, 'MTV')
+        ]).then(([lbciArticles, mtvArticles]) => {
             const tickerScroll = document.getElementById('ticker-scroll');
             tickerScroll.innerHTML = ''; // Clear loading text
 
-            // Map the items so we know which network they came from
-            const lbciArticles = (lbciData.items || []).slice(0, 7).map(item => ({...item, source: 'LBCI'}));
-            const mtvArticles = (mtvData.items || []).slice(0, 7).map(item => ({...item, source: 'MTV'}));
-            
-            // Combine both arrays into one big news list
             const combinedNews = [...lbciArticles, ...mtvArticles];
 
-            // If both feeds completely fail for some reason, show an error
             if(combinedNews.length === 0) {
                 tickerScroll.innerHTML = '<span class="ticker-item">Unable to load live news. Please check back later.</span>';
                 return;
             }
 
-            // Shuffle them slightly so LBCI and MTV articles alternate in the feed
+            // Shuffle them so LBCI and MTV alternate
             combinedNews.sort(() => Math.random() - 0.5);
 
             combinedNews.forEach(item => {
                 const articleSpan = document.createElement('span');
                 articleSpan.className = 'ticker-item';
                 
-                // Add a small tag showing if it is MTV or LBCI before the headline
                 articleSpan.innerHTML = `
                     <span class="ticker-separator">&bull;</span>
                     <span class="ticker-source">${item.source}</span>
@@ -188,10 +198,6 @@
                 `;
                 tickerScroll.appendChild(articleSpan);
             });
-        })
-        .catch(error => {
-            console.error("Critical error fetching news:", error);
-            document.getElementById('ticker-scroll').innerHTML = '<span class="ticker-item">Unable to load live news at this time.</span>';
         });
     </script>
 </body>

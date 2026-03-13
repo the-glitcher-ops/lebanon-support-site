@@ -142,56 +142,44 @@
     </footer>
 
     <script>
+        // Open, reliable RSS Feed URLs
         const lbciUrl = 'https://www.lbcgroup.tv/Rss/News/en/8/lebanon-news';
-        const mtvUrl = 'https://www.mtv.com.lb/rss/news/en';
+        const the961Url = 'https://www.the961.com/feed/';
 
-        // 1. Fetch LBCI using the proven method that worked for you before
-        const fetchLBCI = fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(lbciUrl)}`)
-            .then(res => res.json())
-            .then(data => {
-                return (data.items || []).slice(0, 7).map(item => ({
-                    title: item.title,
-                    link: item.link,
-                    source: 'LBCI'
-                }));
-            })
-            .catch(err => {
-                console.error("LBCI feed error:", err);
-                return []; // Fails silently
-            });
+        // Reusable function to fetch cleanly via rss2json
+        const fetchFeed = (url, sourceName) => {
+            return fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`)
+                .then(res => res.json())
+                .then(data => {
+                    return (data.items || []).slice(0, 7).map(item => ({
+                        // Remove any messy HTML from titles if it exists
+                        title: item.title.replace(/<[^>]*>?/gm, ''), 
+                        link: item.link,
+                        source: sourceName
+                    }));
+                })
+                .catch(err => {
+                    console.error(`${sourceName} feed error:`, err);
+                    return []; // Fails silently so it doesn't break the other feed
+                });
+        };
 
-        // 2. Fetch MTV using a different proxy to dodge their firewall
-        const mtvProxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(mtvUrl)}`;
-        const fetchMTV = fetch(mtvProxyUrl)
-            .then(res => res.text())
-            .then(str => {
-                const data = new window.DOMParser().parseFromString(str, "text/xml");
-                const items = Array.from(data.querySelectorAll("item")).slice(0, 7);
-                return items.map(item => ({
-                    title: item.querySelector("title")?.textContent || "No Title",
-                    link: item.querySelector("link")?.textContent || "#",
-                    source: 'MTV'
-                }));
-            })
-            .catch(err => {
-                console.error("MTV feed error:", err);
-                return []; // Fails silently, won't break LBCI
-            });
-
-        // Run both fetches at the same time
-        Promise.all([fetchLBCI, fetchMTV]).then(([lbciArticles, mtvArticles]) => {
+        // Fetch both feeds at the exact same time
+        Promise.all([
+            fetchFeed(lbciUrl, 'LBCI'),
+            fetchFeed(the961Url, 'The961')
+        ]).then(([lbciArticles, the961Articles]) => {
             const tickerScroll = document.getElementById('ticker-scroll');
-            tickerScroll.innerHTML = ''; // Clear out the loading text
+            tickerScroll.innerHTML = ''; // Clear loading text
 
-            const combinedNews = [...lbciArticles, ...mtvArticles];
+            const combinedNews = [...lbciArticles, ...the961Articles];
 
-            // If absolutely everything fails
             if(combinedNews.length === 0) {
                 tickerScroll.innerHTML = '<span class="ticker-item">Unable to load live news at this time. Please check back later.</span>';
                 return;
             }
 
-            // Shuffle them so LBCI and MTV alternate
+            // Shuffle them so the sources alternate
             combinedNews.sort(() => Math.random() - 0.5);
 
             combinedNews.forEach(item => {

@@ -138,13 +138,13 @@
     </main>
 
     <footer class="bg-gray-800 text-gray-300 py-6 text-center text-sm mt-8">
-        <p>Created to support Lebanon during crises.</p>
+        <p>Created to support Lebanon during crisis.</p>
     </footer>
 
     <script>
         // Open, reliable RSS Feed URLs
         const lbciUrl = 'https://www.lbcgroup.tv/Rss/News/en/8/lebanon-news';
-        const the961Url = 'https://www.the961.com/feed/';
+        const bbcUrl = 'https://feeds.bbci.co.uk/news/world/middle_east/rss.xml';
 
         // Reusable function to fetch cleanly via rss2json
         const fetchFeed = (url, sourceName) => {
@@ -167,19 +167,19 @@
         // Fetch both feeds at the exact same time
         Promise.all([
             fetchFeed(lbciUrl, 'LBCI'),
-            fetchFeed(the961Url, 'The961')
-        ]).then(([lbciArticles, the961Articles]) => {
+            fetchFeed(bbcUrl, 'BBC')
+        ]).then(([lbciArticles, bbcArticles]) => {
             const tickerScroll = document.getElementById('ticker-scroll');
             tickerScroll.innerHTML = ''; // Clear loading text
 
-            const combinedNews = [...lbciArticles, ...the961Articles];
+            const combinedNews = [...lbciArticles, ...bbcArticles];
 
             if(combinedNews.length === 0) {
                 tickerScroll.innerHTML = '<span class="ticker-item">Unable to load live news at this time. Please check back later.</span>';
                 return;
             }
 
-            // Shuffle them so the sources alternate
+            // Shuffle them so the sources alternate in the scrolling banner
             combinedNews.sort(() => Math.random() - 0.5);
 
             combinedNews.forEach(item => {

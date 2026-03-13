@@ -5,6 +5,67 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Help Lebanon: Legal & Verified Channels</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        .ticker-container {
+            width: 100%;
+            background-color: #1f2937; /* Dark gray */
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            height: 45px;
+            overflow: hidden;
+            position: relative;
+            border-bottom: 3px solid #b91c1c; /* Red border matching theme */
+        }
+        .ticker-label {
+            background-color: #b91c1c; /* Red background */
+            padding: 0 20px;
+            font-weight: bold;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            position: relative;
+            z-index: 10;
+            white-space: nowrap;
+            text-transform: uppercase;
+            font-size: 0.875rem;
+            letter-spacing: 0.05em;
+            box-shadow: 5px 0 10px rgba(0,0,0,0.5);
+        }
+        .ticker-scroll {
+            display: flex;
+            white-space: nowrap;
+            padding-left: 100%; /* Starts off-screen to the right */
+            animation: scroll-left 40s linear infinite; /* Adjust '40s' to make it faster/slower */
+        }
+        .ticker-scroll:hover {
+            animation-play-state: paused; /* Pauses so users can click links */
+        }
+        .ticker-item {
+            padding: 0 40px;
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+        }
+        .ticker-item a {
+            color: #e5e7eb;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .ticker-item a:hover {
+            color: #fca5a5; /* Turns light red when hovered */
+        }
+        .ticker-separator {
+            color: #ef4444;
+            margin-right: 15px;
+            font-weight: bold;
+        }
+        @keyframes scroll-left {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+        }
+    </style>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans">
 
@@ -15,16 +76,16 @@
         </p>
     </header>
 
+    <div class="ticker-container">
+        <div class="ticker-label">LBCI Live News</div>
+        <div class="ticker-scroll" id="ticker-scroll">
+            <span class="ticker-item">Loading latest headlines...</span>
+        </div>
+    </div>
+
     <main class="max-w-5xl mx-auto py-10 px-4">
         
-        <section class="mb-12">
-            <h2 class="text-2xl font-bold border-b-2 border-red-700 pb-2 mb-6">Live Updates</h2>
-            <div id="news-feed" class="grid md:grid-cols-2 gap-4">
-                <p class="text-gray-500 italic" id="loading-text">Loading latest headlines...</p>
-            </div>
-        </section>
-
-        <section class="mb-12">
+        <section class="mb-12 mt-4">
             <h2 class="text-2xl font-bold border-b-2 border-red-700 pb-2 mb-6">The Gold Standard (Unrestricted & Neutral)</h2>
             <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <h3 class="text-xl font-bold mb-2">The Lebanese Red Cross</h3>
@@ -68,45 +129,41 @@
     </main>
 
     <footer class="bg-gray-800 text-gray-300 py-6 text-center text-sm mt-8">
-        <p>Created to support Lebanon during crisis. </p>
+        <p>Created to support Lebanon during crisis </p>
     </footer>
 
     <script>
-        // Here you can put the RSS feed URL of any news outlet you prefer.
-        // I am using Al Jazeera's general feed as a reliable placeholder.
-        const rssUrl = 'https://www.aljazeera.com/xml/rss/all.xml';
+        // Official LBCI Lebanon English News Feed
+        const rssUrl = 'https://www.lbcgroup.tv/Rss/News/en/8/lebanon-news';
         
-        // We use a free public API to convert the messy XML RSS feed into clean JSON
+        // Convert the XML RSS feed into clean JSON
         const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
 
         fetch(apiUrl)
             .then(response => response.json())
             .then(data => {
-                const newsContainer = document.getElementById('news-feed');
-                document.getElementById('loading-text').style.display = 'none'; // Hide loading text
+                const tickerScroll = document.getElementById('ticker-scroll');
+                tickerScroll.innerHTML = ''; // Clear out the loading text
                 
-                // We will just grab the top 4 news items so the page doesn't get too long
-                const topArticles = data.items.slice(0, 4);
+                // Grab the top 10 most recent news headlines
+                const topArticles = data.items.slice(0, 10);
                 
+                // Loop through them and add them to the scrolling line
                 topArticles.forEach(item => {
-                    const article = document.createElement('div');
-                    article.className = 'bg-white p-4 rounded-lg shadow-sm border border-gray-200';
+                    const articleSpan = document.createElement('span');
+                    articleSpan.className = 'ticker-item';
                     
-                    // Format the publication date cleanly
-                    const pubDate = new Date(item.pubDate).toLocaleDateString();
-
-                    article.innerHTML = `
-                        <h4 class="font-bold text-lg leading-tight mb-2">
-                            <a href="${item.link}" target="_blank" class="hover:text-red-600 transition">${item.title}</a>
-                        </h4>
-                        <p class="text-xs text-gray-500 font-semibold">${pubDate}</p>
+                    // Creates the red bullet point and the clickable headline
+                    articleSpan.innerHTML = `
+                        <span class="ticker-separator">&bull;</span>
+                        <a href="${item.link}" target="_blank" title="Read more">${item.title}</a>
                     `;
-                    newsContainer.appendChild(article);
+                    tickerScroll.appendChild(articleSpan);
                 });
             })
             .catch(error => {
                 console.error("Error fetching news:", error);
-                document.getElementById('loading-text').innerText = "Unable to load live news at this time.";
+                document.getElementById('ticker-scroll').innerHTML = '<span class="ticker-item">Unable to load live news at this time. Please check back later.</span>';
             });
     </script>
 </body>
